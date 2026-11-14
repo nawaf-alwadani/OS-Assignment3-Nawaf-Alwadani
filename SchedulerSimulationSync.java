@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Random;
-import java.util.concurrent.locks.ReentrantLock;   // Feature 1 (and Feature 2): mutex lock
+import java.util.concurrent.locks.ReentrantLock;
 // TODO (Feature 3):               import java.util.concurrent.Semaphore;
 
 // ANSI Color Codes for enhanced terminal output (same as Assignment 1)
@@ -60,44 +60,69 @@ class SharedStats {
     // Number of times a CPU found the ready queue empty and polled it again (busy waiting). Must be 0 after Feature 3.
     static final java.util.concurrent.atomic.AtomicInteger busyWaitPolls = new java.util.concurrent.atomic.AtomicInteger(0);
 
-    // TODO Feature 2: declare the lock(s) protecting the three shared variables above here.
-    // Think about it: ONE lock for the three variables, or ONE lock PER variable? (you must justify it in MY_WORK.md)
+    // Feature 2: one lock for the three counters.
+    // the updates are very short, so one lock is simple and does not slow the CPUs much
+    private static final ReentrantLock statsLock = new ReentrantLock();
 
     public static void incrementContextSwitch() {
-        // TODO Feature 2: protect this critical section
-        int tmp = contextSwitchCount;       // 1) read
-        RaceWindow.pause();                 //    <- another thread can read the SAME value here
-        contextSwitchCount = tmp + 1;       // 2) write  (one increment is lost if someone else did the same)
+        statsLock.lock();
+        try {
+            int tmp = contextSwitchCount;       // 1) read
+            RaceWindow.pause();                 //    other threads wait at lock() here
+            contextSwitchCount = tmp + 1;       // 2) write (no update is lost now)
+        } finally {
+            statsLock.unlock();
+        }
     }
 
     public static void incrementCompletedProcess() {
-        // TODO Feature 2: protect this critical section
-        int tmp = completedProcessCount;
-        RaceWindow.pause();
-        completedProcessCount = tmp + 1;
+        statsLock.lock();
+        try {
+            int tmp = completedProcessCount;
+            RaceWindow.pause();
+            completedProcessCount = tmp + 1;
+        } finally {
+            statsLock.unlock();
+        }
     }
 
     public static void addServiceTime(int ms) {
-        // TODO Feature 2: protect this critical section
-        long tmp = totalServiceTime;
-        RaceWindow.pause();
-        totalServiceTime = tmp + ms;
+        statsLock.lock();
+        try {
+            long tmp = totalServiceTime;
+            RaceWindow.pause();
+            totalServiceTime = tmp + ms;
+        } finally {
+            statsLock.unlock();
+        }
     }
 
-    // Readers must also be protected (a read in the middle of an update is not safe either)
+    // reads use the same lock so we never read a value in the middle of an update
     public static int getCompletedProcessCount() {
-        // TODO Feature 2: protect this read
-        return completedProcessCount;
+        statsLock.lock();
+        try {
+            return completedProcessCount;
+        } finally {
+            statsLock.unlock();
+        }
     }
 
     public static int getContextSwitchCount() {
-        // TODO Feature 2: protect this read
-        return contextSwitchCount;
+        statsLock.lock();
+        try {
+            return contextSwitchCount;
+        } finally {
+            statsLock.unlock();
+        }
     }
 
     public static long getTotalServiceTime() {
-        // TODO Feature 2: protect this read
-        return totalServiceTime;
+        statsLock.lock();
+        try {
+            return totalServiceTime;
+        } finally {
+            statsLock.unlock();
+        }
     }
 }
 
@@ -108,24 +133,20 @@ class ReadyQueue {
     private final LinkedList<Thread> list = new LinkedList<>();   // FIFO queue of threads
     private final Map<Thread, Process> map = new HashMap<>();     // thread -> process (same idea as Assignment 1)
 
-    // Feature 1: ONE mutex lock that protects BOTH `list` and `map`.
-    // They always change together (a thread is added to the list AND to the map), so they form a single
-    // shared object: one lock keeps them consistent with each other. Only one CPU at a time can be inside
-    // add(), poll(), processOf() or snapshot().
-    private final ReentrantLock queueLock = new ReentrantLock();
+    // Feature 1: one lock for list and map (they are always used together)
+    private final ReentrantLock lock = new ReentrantLock();
 
     // TODO Feature 3: declare the counting semaphore that counts the processes waiting in the ready queue here
 
     // Add a process to the ready queue (new process, or a process that did not finish its quantum)
     public void add(Process process) {
         Thread thread = new Thread(process);
-        // Feature 1: critical section -> writing to the shared list and map
-        queueLock.lock();
+        lock.lock();
         try {
             list.add(thread);
             map.put(thread, process);
         } finally {
-            queueLock.unlock();             // always released, even if an exception is thrown
+            lock.unlock();   // unlock in finally so it always happens
         }
 
         // TODO Feature 3: signal that one more process is available in the queue
@@ -138,36 +159,33 @@ class ReadyQueue {
 
     // Remove and return the thread at the head of the queue (or null if the queue is empty)
     public Thread poll() {
-        // Feature 1: critical section -> the check, the read of the head and its removal must be ONE
-        // atomic step. With the lock held, no other CPU can read the same head during RaceWindow.pause().
-        queueLock.lock();
+        // only one CPU can take the head at a time, so no two CPUs get the same process
+        lock.lock();
         try {
             if (list.isEmpty()) {
-                return null;                // safe: the finally block still unlocks
+                return null;
             }
             Thread head = list.getFirst();      // 1) read the head of the queue
-            RaceWindow.pause();                 //    <- other CPUs are now blocked on queueLock.lock()
-            list.removeFirst();                 // 2) remove the head (still the same thread)
+            RaceWindow.pause();                 //    other CPUs wait at lock() here
+            list.removeFirst();                 // 2) remove the head
             return head;
         } finally {
-            queueLock.unlock();
+            lock.unlock();
         }
     }
 
     public Process processOf(Thread thread) {
-        // Feature 1: reading the map while another CPU modifies it (HashMap) is not safe
-        queueLock.lock();
+        lock.lock();
         try {
             return map.get(thread);
         } finally {
-            queueLock.unlock();
+            lock.unlock();
         }
     }
 
     // Names of the processes currently waiting in the queue (used to display the ready queue)
     public String snapshot() {
-        // Feature 1: iterating over the list while another CPU adds/removes would corrupt the iteration
-        queueLock.lock();
+        lock.lock();
         try {
             StringBuilder sb = new StringBuilder();
             for (Thread t : list) {
@@ -176,7 +194,7 @@ class ReadyQueue {
             }
             return sb.length() == 0 ? "empty" : sb.toString();
         } finally {
-            queueLock.unlock();
+            lock.unlock();
         }
     }
 }
