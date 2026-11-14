@@ -133,102 +133,101 @@
 ## Your Development Log
 
 ### Entry 1 - [November 13, 2026, evening]
-**What I did**: Read the assignment PDF and the README, and set up my GitHub account
+**What I did**: I read the assignment and made my repo.
 
 **Details**:
-- Read the PDF summary and the full README to understand the 3 features and the rules
-- Created my GitHub account `nawaf-alwadani` with my university email
-- Forked `makopt/OS-Assignment3-Starter-481` and renamed it to `OS-Assignment3-Nawaf-Alwadani` (public)
+- I read the PDF and the README.
+- I made my GitHub account with my university email.
+- I forked the starter repo and renamed it.
 
-**Challenges**: The README is long and has many rules (which classes I can change, the order of the features, the commit rules), so it was easy to miss something
+**Challenges**: The README is long.
 
-**Solution**: I wrote my own step-by-step checklist from the PDF and the README and followed it in order
+**Solution**: I wrote a short list of steps.
 
 **Time spent**: about 1 hour
 
 ---
 
 ### Entry 2 - [November 13, 2026, 11:38 PM]
-**What I did**: Set my student ID and ran the original starter
+**What I did**: I put my student ID and ran the starter code.
 
 **Details**:
-- Changed line 304 to `int studentID = 442370172;`
-- My values: 11 processes, quantum 3000 ms, 3 CPUs. Expected: 25 context switches, 11 completed, 55192 ms service time
-- Ran the starter 3 times and saved the output. Run 1: all 3 CPUs crashed with `NullPointerException` inside `LinkedList`. Runs 2 and 3: CPU-1, CPU-2 and CPU-3 all picked `P1`, then `IllegalThreadStateException`, then the watchdog stopped the program (busy-waiting polls 505 and 811)
-- Configured Git with my name and university email, then committed and pushed `Set my student ID: 442370172`
+- I changed line 304 to my ID: 442370172.
+- I got 11 processes, quantum 3000 ms and 3 CPUs.
+- I ran the starter code and saved the output.
+- Three CPUs took P1 at the same time and the program stopped with an error.
 
-**Challenges**: The first `git push` failed because Git could not ask for my GitHub login
+**Challenges**: My first push did not work.
 
-**Solution**: Ran `git push` again from a terminal where I could sign in to GitHub in the browser
+**Solution**: I signed in to GitHub and pushed again.
 
 **Time spent**: about 30 minutes
 
 ---
 
 ### Entry 3 - [November 13, 2026, 11:42 PM]
-**What I did**: Feature 1, lock on the ready queue
+**What I did**: Feature 1, a lock for the ready queue.
 
 **Details**:
-- Added `private final ReentrantLock lock` in `ReadyQueue` (one lock for `list` and `map` because they change together)
-- Wrapped `add()`, `poll()`, `processOf()` and `snapshot()` in `lock.lock(); try { ... } finally { lock.unlock(); }`
-- Tested 5 times: no exception, no watchdog, completed = 11/11. The counters were still wrong (context switches 21-23 instead of 25, service time 43192 or 49192 instead of 55192) and busy-waiting polls about 30
-- Commit: `Feature 1: Protected the ready queue with a ReentrantLock`
+- I added one `ReentrantLock` in `ReadyQueue`.
+- I used `lock()` and `unlock()` in the 4 methods.
+- I put `unlock()` in `finally`.
+- I ran it 5 times. No errors, but the counters were still wrong.
 
-**Challenges**: In `poll()` there is a `return null` and a `return head` inside the critical section, so I was not sure where to unlock
+**Challenges**: `poll()` has a `return` inside.
 
-**Solution**: Put the unlock in `finally`, it runs after every `return`, so the lock is always released
+**Solution**: `finally` runs after `return`, so the lock is always opened.
 
-**Time spent**: about 30 minutes
+**Time spent**: about 15 minutes
 
 ---
 
 ### Entry 4 - [November 13, 2026, 11:45 PM]
-**What I did**: Feature 2, lock on the shared statistics
+**What I did**: Feature 2, a lock for the counters.
 
 **Details**:
-- Added `private static final ReentrantLock statsLock` in `SharedStats` (one lock for the three counters)
-- Protected the 3 update methods and also the 3 getters with `lock()` / `try` / `finally`
-- Tested 5 times: context switches 25, completed 11, service time 55192, all ✔. Only busy-waiting polls was still wrong (29 to 33)
-- Commit: `Feature 2: Added locks to the shared statistics counters`
+- I added one lock `statsLock` in `SharedStats`.
+- I used it in the 3 update methods and the 3 get methods.
+- I ran it 5 times. The first 3 checks were correct.
 
-**Challenges**: Choosing between one lock for all counters or one lock per counter
+**Challenges**: One lock or three locks?
 
-**Solution**: Chose one lock because each update is very short, so the CPUs almost never wait for each other, and the code is simpler
+**Solution**: I used one lock. It is simple and the updates are short.
 
-**Time spent**: about 30 minutes
+**Time spent**: about 15 minutes
 
 ---
 
 ### Entry 5 - [November 13, 2026, 11:47 PM]
-**What I did**: Feature 3, counting semaphore instead of busy waiting
+**What I did**: Feature 3, a semaphore.
 
 **Details**:
-- Added `private final Semaphore available = new Semaphore(0)` in `ReadyQueue`, `add()` calls `available.release()`
-- In `CpuWorker.run()` removed the `sleep(20)` polling loop, the CPU now calls `readyQueue.waitForProcess()` (which does `acquire()`) before `poll()`
-- When the last process finishes, the CPU calls `readyQueue.wakeUpAll(totalCPUs)` so the blocked CPUs wake up, see that all processes are done, and stop
-- Tested 5 times: all 4 lines ✔, busy-waiting polls = 0, "All shared values are consistent", program ends by itself in about 4-5 seconds
-- Commit: `Feature 3: Replaced busy waiting with a counting semaphore`
+- I added a semaphore that starts at 0.
+- `add()` calls `release()`.
+- The CPU calls `acquire()` before it takes a process.
+- I removed the old loop with `sleep(20)`.
+- I ran it 5 times. All 4 checks were correct.
 
-**Challenges**: Understanding how the CPUs can stop, because a CPU blocked in `acquire()` will never wake up if no process is added again
+**Challenges**: How do the CPUs stop at the end?
 
-**Solution**: The CPU that finishes the last process releases `totalCPUs` permits, and after `acquire()` each CPU checks if all processes are completed before taking a process
+**Solution**: The last CPU calls `release(totalCPUs)` to wake up all CPUs.
 
-**Time spent**: about 45 minutes
+**Time spent**: about 20 minutes
 
 ---
 
 ### Entry 6 - [Optional - November 14, 2026]
-**What I did**: Wrote this file (log and technical answers), recorded and uploaded the demo video
+**What I did**: I wrote this file and made the video.
 
 **Details**:
-- Filled the development log and the technical answers with the real output of my runs
-- Recorded the video in VS Code, uploaded it, and added the public link at the top of this file
+- I wrote the log and the answers.
+- I recorded the video in VS Code.
 
-**Challenges**: Keeping the video between 2 and 3 minutes
+**Challenges**: The video must be 2 to 3 minutes.
 
-**Solution**: Wrote a short script with a time for each part before recording
+**Solution**: I wrote short notes before I recorded.
 
-**Time spent**: [fill in]
+**Time spent**: about 1 hour
 
 ---
 
@@ -236,13 +235,13 @@
 
 > 💡 **TIP:** Fill this in **last**, after all entries are written.
 
-**Total time spent on assignment**: about 5 hours
+**Total time spent on assignment**: about 3 hours
 
-**Most challenging part**: The clean shutdown of the CPUs with the semaphore
+**Most challenging part**: Stopping the CPUs at the end.
 
-**Most interesting learning**: A simple `x = x + 1` is not safe when two threads do it at the same time
+**Most interesting learning**: `x = x + 1` is not safe with two threads.
 
-**What I would do differently next time**: Start earlier and spread my work over more days
+**What I would do differently next time**: Start earlier.
 
 ---
 
@@ -262,7 +261,7 @@
 
 **Your Answer:** *(5-7 sentences)*
 
-[Write your answer here.]
+I learned that threads can make mistakes when they use the same data. Before, I think `x = x + 1` is always safe, but it is not. In the starter code, three CPUs take P1 in the same time. I learned to use a lock, so only one thread can go in. I put `unlock()` in `finally` so the lock always open. I also learned the semaphore, it make the CPU sleep when there is no work.
 
 ## Question 2: What was the most challenging part of this assignment?
 
@@ -270,7 +269,7 @@
 
 **Your Answer:** *(5-7 sentences)*
 
-[Write your answer here.]
+The most hard part for me was Feature 3. To wait with the semaphore was easy. But to stop the CPUs in the end was hard. When all processes finish, some CPUs still sleep in `acquire()`. No one add new process, so they never wake up. If I forget this, the program not stop and the watchdog stop it.
 
 ## Question 3: How did you overcome the challenges you faced?
 
@@ -278,7 +277,7 @@
 
 **Your Answer:** *(5-7 sentences)*
 
-[Write your answer here.]
+First I run the starter code and save the output to see the errors. Then I make one feature in one time. After every feature I run the program 5 times and check the results. I read the README again for the semaphore part. I also use AI tool to explain the parts I don't understand, then I test the code by myself. In the end all the 4 checks was correct.
 
 ## Question 4: Where can synchronization concepts be applied in real-world applications?
 
@@ -286,7 +285,7 @@
 
 **Your Answer:** *(5-7 sentences)*
 
-[Write your answer here.]
+Synchronization is used in a lot of programs. In the bank, two people can take money from the same account in the same time, so we need a lock. In booking tickets, two people must not take the same seat, like two CPUs must not take the same process. The print queue is like my ready queue, and a semaphore can count the files. Also a counter of visitors in a website need a lock. So these ideas are in many apps we use every day.
 
 ### Optional: What would you like to learn more about?
 
@@ -320,7 +319,7 @@
 
 **Your Answer:** *(3-5 sentences)*
 
-In my starter run (run 2) all three counters were wrong: context switches 21 instead of 25 (4 lost), completed processes 9 instead of 11 (2 lost), and service time 45890 instead of 55192 ms (9302 ms lost). Before that, CPU-1, CPU-2 and CPU-3 all printed `picks P1`, so `P2` and `P3` were removed from the queue without being run, and two CPUs crashed with `IllegalThreadStateException` because they called `start()` on the same thread. The completed counter never reached 11, so the watchdog stopped the program. On a real machine the same thing can happen without `RaceWindow`, because the OS can switch threads between the read and the write at any moment. It is hard to detect because the window is only a few nanoseconds, so the program is correct most of the time and fails only sometimes.
+In my starter run, the 3 counters were wrong. Context switches were 21, not 25. Completed processes were 9, not 11. Three CPUs took P1 at the same time, so P2 and P3 were lost. This can also happen on a real computer, because the OS can stop a thread at any time. It is hard to find because it does not happen every time.
 
 Verification block of the **original starter**:
 ```
@@ -345,14 +344,14 @@ Verification block of **my final version**:
 ```
 
 **Explanation of the timeline:**
-Example with `contextSwitchCount` when its value is 12:
-1. CPU-1 runs `incrementContextSwitch()` and reads `tmp = 12`
-2. CPU-1 calls `RaceWindow.pause()` and is paused
-3. CPU-2 runs `incrementContextSwitch()` and also reads `tmp = 12`
-4. CPU-1 writes `contextSwitchCount = 13`
-5. CPU-2 writes `contextSwitchCount = 13` (it overwrites CPU-1's value)
+Example with `contextSwitchCount = 12`:
+1. CPU-1 reads 12
+2. CPU-1 stops at `RaceWindow.pause()`
+3. CPU-2 also reads 12
+4. CPU-1 writes 13
+5. CPU-2 writes 13
 
-Two quanta started but the counter only went up by 1, so one update is lost. With `statsLock`, CPU-2 must wait at `lock()` until CPU-1 has written 13, then it reads 13 and writes 14.
+Two CPUs added 1, but the value is 13, not 14. One update is lost. With the lock, CPU-2 waits for CPU-1. Then it reads 13 and writes 14.
 
 ## Question 2: Critical Sections and Lock Granularity
 
@@ -362,17 +361,17 @@ Two quanta started but the counter only went up by 1, so one update is lost. Wit
 
 **Your Answer:** *(3-5 sentences)*
 
-I used one lock (`statsLock`) for the three counters because each update is very short, so the CPUs almost never wait for each other, and one lock is simpler; the trade-off is that an update of `totalServiceTime` blocks an update of `contextSwitchCount` even though they are independent, so one lock per counter would allow a bit more parallel work. The ready queue has its own lock (`lock` in `ReadyQueue`) because it protects different data, so a CPU updating a counter does not block a CPU taking a process, and the two locks are never held at the same time, so they cannot cause a deadlock. Mutual exclusion is provided because every read and write of these variables is between `lock()` and `unlock()`, so only one thread at a time is inside the critical section, and `unlock()` is always in `finally`. Progress holds because a thread only holds a lock for a few lines and always releases it, so a waiting thread will get it when the lock is free. Bounded waiting is not guaranteed because the default `ReentrantLock` is not fair: a thread that just arrived can take the lock before a thread that was waiting longer, but in my program the critical sections are so short that no CPU waits for long in practice (`new ReentrantLock(true)` would make it fair).
+I used one lock for the 3 counters. It is simple and the updates are very short. The bad side is that two CPUs cannot update two counters at the same time. The queue has its own lock because it is different data. Only one thread can be between `lock()` and `unlock()`, so this gives mutual exclusion. `ReentrantLock` is not fair, so a thread may wait longer, but the wait here is very short.
 
 | Critical section (variable / method) | Lock used | Why it needs protection |
 |---|---|---|
-| `ReadyQueue.add()` (`list`, `map`) | `lock` | Two CPUs adding at the same time can corrupt the `LinkedList` and `HashMap` |
-| `ReadyQueue.poll()` (`list`) | `lock` | Check, read head and remove must be one step, or two CPUs get the same process and another one is lost |
-| `ReadyQueue.processOf()` (`map`) | `lock` | Reading a `HashMap` while another CPU changes it is not safe |
-| `ReadyQueue.snapshot()` (`list`, `map`) | `lock` | Looping over the list while it changes caused the `NullPointerException` in my starter run 1 |
-| `SharedStats.incrementContextSwitch()` / `getContextSwitchCount()` | `statsLock` | Read-modify-write, an increment can be lost |
-| `SharedStats.incrementCompletedProcess()` / `getCompletedProcessCount()` | `statsLock` | A lost update means the count never reaches 11 and the CPUs never stop |
-| `SharedStats.addServiceTime()` / `getTotalServiceTime()` | `statsLock` | Read-modify-write, service time can be lost |
+| `ReadyQueue.add()` | `lock` | Two CPUs can add at the same time and break the list |
+| `ReadyQueue.poll()` | `lock` | Two CPUs can take the same process |
+| `ReadyQueue.processOf()` | `lock` | Reading the map while another CPU changes it |
+| `ReadyQueue.snapshot()` | `lock` | Reading the list while another CPU changes it |
+| `incrementContextSwitch()` / `getContextSwitchCount()` | `statsLock` | An update can be lost |
+| `incrementCompletedProcess()` / `getCompletedProcessCount()` | `statsLock` | An update can be lost and the CPUs never stop |
+| `addServiceTime()` / `getTotalServiceTime()` | `statsLock` | An update can be lost |
 
 ## Question 3: Busy Waiting vs Semaphore
 
@@ -382,7 +381,7 @@ I used one lock (`statsLock`) for the three counters because each update is very
 
 **Your Answer:** *(3-5 sentences)*
 
-In the starter, when the queue was empty a CPU slept 20 ms and checked again, over and over; this is busy waiting because the CPU keeps running just to check, and in my starter run it happened 505 times (811 in another run). My semaphore `available` counts the processes waiting in the ready queue: `add()` does `release()` (+1) and a CPU does `acquire()` (-1) before `poll()`, so if the value is 0 the CPU is blocked and uses no CPU time until a process is added. The initial value is 0 because the queue is empty when the `ReadyQueue` is created, and right after the 11 initial `add()` calls in `main` its value is 11. The CPU that finishes the last process calls `release(totalCPUs)` (3 in my run) because the other CPUs are blocked in `acquire()` and no process will ever be added again; each one wakes up, sees completed = 11, and returns. Without it those CPUs would stay blocked forever, the program would not end, and the watchdog would stop it.
+In the starter, the CPU checked the empty queue again and again. This is busy waiting and it wastes CPU time. In my run it happened 505 times. My semaphore counts the processes in the queue. It starts at 0 because the queue is empty, and after adding 11 processes it is 11. At the end, the last CPU calls `release(totalCPUs)` to wake up the other CPUs. Without it, they wait forever.
 
 ## Question 4: Classical Problems and Deadlock
 
@@ -393,26 +392,26 @@ In the starter, when the queue was empty a CPU slept 20 ms and checked again, ov
 **Your Answer:** *(3-5 sentences)*
 
 **Classical problem and roles**:
-This is the **Producer-Consumer (bounded-buffer)** problem. The `main` thread is a producer when it adds the 11 processes, and the CPUs are consumers when they take a process with `poll()`. But a CPU is also a producer, because when a process does not finish its quantum the CPU puts it back with `readyQueue.add(process)`, so each CPU plays both roles.
+It is the **Producer-Consumer** problem. `main` is the producer because it adds processes. The CPUs are consumers because they take processes. A CPU is also a producer when it puts a process back.
 
 **Semaphores for a bounded queue (name and initial value)**:
-- `mutex` = 1, for mutual exclusion on the queue (in my code this is the `ReentrantLock lock`)
-- `empty` = K, the number of free places in the queue
-- `full` = 0, the number of processes in the queue (in my code this is `available`)
+- `mutex` = 1 (only one thread uses the queue at a time)
+- `empty` = K (free places in the queue)
+- `full` = 0 (processes in the queue)
 
 **Deadlock scenario and prevention**:
-If a CPU took the queue lock first and then called `acquire()` while the queue is empty, it would block while holding the lock; then the CPU that wants to call `add()` (which needs the same lock to add a process and `release()`) waits for the lock forever, and nobody can continue. In my code I avoid this because `waitForProcess()` (`acquire()`) is called before `poll()`, without holding any lock. This breaks the **hold and wait** condition: a thread never holds a lock while waiting for another resource. (In the same way, if two locks are always taken in the same order, the **circular wait** condition is broken.)
+A CPU takes the lock and then waits on `acquire()`. It sleeps and keeps the lock. No one can add a process, so all wait forever. In my code, the CPU calls `acquire()` before the lock. This breaks **hold and wait**.
 
 ## Summary
 
 **Key concepts I understood through these questions:**
-1. A race condition happens when two threads read and write the same variable and one update is lost
-2. A lock with `try/finally` makes a critical section run by one thread at a time and is always released
-3. A counting semaphore lets a thread sleep until there is work, instead of busy waiting
+1. Race condition: two threads change the same value and one change is lost
+2. Lock: only one thread at a time
+3. Semaphore: the CPU sleeps until there is work
 
 **Concepts I need to study more:**
-1. Fair locks and bounded waiting
-2. Deadlock prevention with more than two locks
+1. Fair locks
+2. Deadlock with more than one lock
 
 ---
 
